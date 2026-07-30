@@ -36,12 +36,18 @@ const nextConfig: NextConfig = {
   },
 
   /**
-   * 이력서 PDF 라우트는 런타임에 `process.cwd()` 기준으로 폰트 TTF 를 읽는다.
+   * 아래 라우트들은 런타임에 `process.cwd()` 기준으로 폰트 TTF 를 읽는다.
    * 정적 분석으로는 추적되지 않으므로 서버리스 번들에 포함되도록 명시한다.
    * 이 설정이 없으면 로컬에서는 동작하고 Vercel 배포 후에만 폰트를 찾지 못한다.
+   *
+   * - `/api/resume/pdf`  : 이력서 PDF 한글 임베딩 (@react-pdf/renderer)
+   * - `opengraph-image`  : OG 이미지의 한글 렌더링 (next/og · satori).
+   *                        폰트를 못 찾으면 제목이 빈 사각형으로 나온다.
    */
   outputFileTracingIncludes: {
     "/api/resume/pdf": ["./src/assets/fonts/**"],
+    "/opengraph-image": ["./src/assets/fonts/**"],
+    "/projects/[id]/opengraph-image": ["./src/assets/fonts/**"],
   },
 
   /**
