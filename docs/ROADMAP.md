@@ -115,17 +115,57 @@
 > 이 결정으로 Phase 4는 SEO에 집중한다.
 
 **작업 항목**
-- SEO 최적화 — `generateMetadata`로 동적 title/description/OG 이미지, `sitemap.ts`, `robots.ts` (FR-10, P0이지만 개발 순서상 부가 기능 단계에 배치)
-- `/api/revalidate` — 운영자용 즉시 재생성 트리거 (PRD API 설계, P1)
+- ✅ SEO 최적화 — `generateMetadata`로 동적 title/description/OG 이미지, `sitemap.ts`, `robots.ts` (FR-10)
+- ✅ `/api/revalidate` — 운영자용 즉시 재생성 트리거 (PRD API 설계, P1)
 - ~~기술 스택(스킬) 필터링~~ → **범위 제외 확정** (위 노트 참고)
 - ~~검색 기능~~ → **범위 제외 확정** (위 노트 참고)
 - ~~프로젝트 정렬 순서 적용 (FR-12, P1)~~ → **Phase 2 에서 선행 완료**
 - ~~Notion API 429 재시도 로직 (FR-11, P1)~~ → **Phase 2 에서 선행 완료**
 
+**구현 결정 (2026-07-30)**
+
+- **사이트 절대 URL** (`src/lib/site.ts`) — OG·canonical·sitemap 은 절대 URL 이 필요한데 도메인이
+  미정이다. `SITE_URL` → `VERCEL_PROJECT_PRODUCTION_URL` → `VERCEL_URL` → `localhost` 순으로 폴백한다.
+  프리뷰 배포에서도 프로덕션 도메인을 가리키도록 `VERCEL_PROJECT_PRODUCTION_URL` 을 `VERCEL_URL` 보다 앞에 둔다.
+- **OG 이미지는 `next/og` 로 생성한다** (`opengraph-image.tsx`). 노션 파일 URL 을 `og:image` 로
+  그대로 쓰면 서명 URL 이 1시간 뒤 만료돼, 나중에 받아가는 크롤러에게 403 이 된다.
+  생성 시점에 한 번 받아 PNG 로 구워두면 만료와 무관해진다.
+- **노션 조회를 `cache()` 로 감쌌다.** `generateMetadata` 와 페이지 렌더가 같은 데이터를
+  각각 조회하면 요청당 노션 호출이 그대로 2배가 된다.
+- **`/api/revalidate` 는 fail-closed.** `REVALIDATE_SECRET` 이 없으면 503 으로 막는다.
+  미설정 상태로 배포돼 열린 엔드포인트가 되는 사고를 막기 위함이다. 시크릿 비교는
+  해시 후 `timingSafeEqual` 로 하고, 경로는 `/` 와 `/projects/{id}` 만 허용한다.
+- **`sitemap.ts` 에 `lastModified` 를 넣지 않는다.** `Project` 타입에 수정 시각이 없고,
+  현재 시각을 넣으면 재생성마다 "방금 바뀌었다" 는 거짓 신호를 보내게 된다.
+  필요해지면 노션 `last_edited_time` 을 타입에 추가하는 쪽으로 간다.
+
+**구현 중 확인한 Next 동작 (실측)**
+
+| 확인 | 내용 |
+|---|---|
+| 메타데이터 병합은 얕다 | 페이지가 `openGraph` 를 지정하면 레이아웃의 `type`/`locale`/`siteName` 이 **상속되지 않고 통째로 대체**된다. `twitter.card` 도 기본값 `summary` 로 되돌아가 큰 이미지 미리보기가 사라진다. → `buildSocialMetadata()` 로 공통 필드를 매번 함께 채운다. |
+| 전역 `robots` 는 404 와 충돌한다 | 레이아웃에 `robots` 를 걸면 Next 가 404 에 넣는 `noindex` 와 함께 모순된 메타태그 2개가 나간다. → 색인 대상 페이지에만 `INDEXABLE_ROBOTS` 를 건다. |
+| 이미지 라우트는 `generateStaticParams` 를 따로 써야 한다 | 페이지에만 있으면 `/projects/[id]/opengraph-image` 는 동적(ƒ)으로 남아 `revalidate` 가 적용되지 않는다. 크롤러 요청마다 노션 조회 + satori 렌더가 다시 돈다. |
+| satori 는 `background-image` 를 무시한다 | data URI 를 `background-image` 로 주면 **에러 없이 빈 영역**만 남는다. 이미지를 그리는 방법은 `<img>` 뿐이다. |
+
+> **`<img>` 예외**: `src/lib/og/**` 에 한해 `@next/next/no-img-element` 를 끈다(`eslint.config.mjs`).
+> 이 디렉터리의 JSX 는 브라우저로 가지 않고 서버에서 PNG 로 구워지는 입력이라, 규칙이 막으려는
+> LCP 저하·대역폭 낭비가 성립하지 않는다. 인라인 disable 이 아니라 디렉터리 범위 설정으로 둔다.
+> 화면에 렌더링되는 컴포넌트는 종전대로 `next/image` 를 쓰고 `<img>` 를 금지한다.
+
 **완료 기준**
-- [ ] Lighthouse SEO 점수 90점 이상, `sitemap.xml`/`robots.txt`가 정상 응답된다
-- [ ] 각 페이지에 `generateMetadata`로 동적 title/description/OG 이미지가 설정된다
-- [ ] `/api/revalidate` 가 시크릿 검증 후 지정 경로를 재생성한다
+- [~] Lighthouse SEO 점수 90점 이상, `sitemap.xml`/`robots.txt`가 정상 응답된다
+      — 두 파일은 프로덕션 빌드에서 200 + 올바른 content-type 으로 응답 확인
+      (`text/plain`, `application/xml`). sitemap 에 홈 + 공개 프로젝트 3건이 들어간다.
+      **Lighthouse 측정은 미실행** — 배포 URL 에서 Phase 5 와 함께 잰다.
+- [x] 각 페이지에 `generateMetadata`로 동적 title/description/OG 이미지가 설정된다
+      — 홈 `마루코 | 포트폴리오`, 상세 `프로젝트명 | 포트폴리오`, canonical·og:*·twitter:* ·
+      googlebot 지시까지 프로덕션 HTML 로 확인. OG 이미지는 한글이 tofu 없이 렌더링되고
+      프로필 사진이 원형으로 합성되는 것까지 브라우저로 확인.
+- [x] `/api/revalidate` 가 시크릿 검증 후 지정 경로를 재생성한다
+      — 8개 케이스 전부 확인: 잘못된 JSON 400 / 틀린 시크릿·시크릿 없음 401 /
+      경로 이탈(`/../etc`)·외부 URL 400 / `/`·`/projects/{id}` 200 / GET 405 /
+      시크릿 미설정 시 503(올바른 시크릿을 보내도 막힘).
 - [x] `order` 필드가 있는 프로젝트가 지정한 순서대로, 없는 프로젝트는 최신순으로 표시된다
       — Phase 2 `fetchProjects` 의 `compareProjects` 로 구현. 노션 정렬로는 "빈 값을 뒤로"를
       표현하기 어려워 조회 후 JS 에서 정렬한다. 더미 행 검증 + 실데이터 prerender HTML 로

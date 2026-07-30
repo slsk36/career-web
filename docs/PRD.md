@@ -324,6 +324,15 @@ export function mapNotionPageToCareer(page: PageObjectResponse): Career {
 | `PROJECT_NOT_FOUND` | 존재하지 않거나 비공개 프로젝트 접근 | 404 |
 | `NOTION_API_ERROR` | Notion API 호출 실패(재시도 소진 후) | 502 |
 | `PDF_GENERATION_FAILED` | PDF 생성 중 오류 | 500 |
+| `INVALID_REQUEST` | 요청 본문이 JSON 이 아니거나 `path` 가 허용 목록 밖 | 400 |
+| `UNAUTHORIZED` | `/api/revalidate` 시크릿 불일치 또는 누락 | 401 |
+| `REVALIDATE_NOT_CONFIGURED` | `REVALIDATE_SECRET` 미설정 (fail-closed) | 503 |
+| `REVALIDATE_FAILED` | `revalidatePath` 실행 중 오류 | 500 |
+
+`/api/revalidate` 는 **재생성 경로를 화이트리스트로 제한**한다(`/` 와 `/projects/{id}`).
+임의 경로를 그대로 넘기지 않는다. 시크릿 비교는 응답 시간으로 한 글자씩 추측당하지 않도록
+양쪽을 해시한 뒤 `timingSafeEqual` 로 한다. `REVALIDATE_SECRET` 이 없으면 열어두지 않고
+503 으로 막는다 — 미설정 상태로 배포돼 누구나 재생성을 트리거하는 사고를 막기 위함이다.
 
 ---
 

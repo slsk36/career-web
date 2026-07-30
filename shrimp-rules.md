@@ -46,6 +46,11 @@
 | `src/app/api/resume/pdf/route.ts` | 이력서 PDF 스트림 | 3 |
 | `src/app/api/revalidate/route.ts` | 운영자용 즉시 재생성 (P1) | 4 |
 | `src/app/sitemap.ts`, `src/app/robots.ts` | SEO | 4 |
+| `src/app/opengraph-image.tsx` | 홈 OG 이미지 (`next/og`) | 4 |
+| `src/app/projects/[id]/opengraph-image.tsx` | 프로젝트 OG 이미지 | 4 |
+| `src/lib/site.ts` | 사이트 절대 URL 확정 (`getSiteUrl` / `absoluteUrl`) | 4 |
+| `src/lib/seo.ts` | `SITE_NAME`, `INDEXABLE_ROBOTS`, `buildMetaDescription`, `buildSocialMetadata` | 4 |
+| `src/lib/og/` | OG 카드 레이아웃 · 폰트 로더 · 원격 이미지 → data URI | 4 |
 | `src/components/portfolio/` | 도메인 컴포넌트 (프로젝트 카드, 경력 타임라인 등) | 2~3 |
 
 - **금지**: `pages/` 디렉터리 생성, `src/app/api/projects/`·`src/app/api/careers/` 같은 **목록 조회용 공개 API 라우트 생성** (§5.3)
@@ -119,10 +124,20 @@ const skills =
 - `src/lib/notion/*`는 **Server Component / Route Handler에서만** import한다. `"use client"` 파일에서 import 금지.
 - 환경변수 미설정 시에는 원인이 드러나는 한국어 에러를 던진다 (`src/lib/supabase/server.ts:22-26` 형식 참고).
 
+### 4.5-1 "첫 번째 행" 을 그대로 믿지 않는다
+
+PROFILE 은 1행짜리 설정 테이블처럼 쓰지만, **정렬을 지정하지 않은 조회의 순서는 보장되지 않는다.**
+노션에서 빈 행이 실수로 추가되는 일은 흔하고, 그 빈 행이 먼저 나올 수 있다.
+실제로 빈 행 하나 때문에 이름·소개·연락처가 전부 사라진 적이 있다(2026-07-30).
+
+- ❌ `page_size: 1` 로 받아 `results[0]` 을 그대로 쓰기. 그 1행이 빈 행이면 복구할 방법이 없다.
+- ✅ 여유 있게 받아(`page_size: 10`) **내용이 있는 행**만 후보로 삼고, 그 중 공개 상태인 행을 우선한다.
+- 후보가 2개 이상이면 `console.warn` 으로 남긴다. 사용자가 중복을 알아챌 수 있어야 한다.
+
 ### 4.6 그 밖의 노션 규칙
 
-- 노션 파일(이미지) URL은 **1시간 만료 서명 URL이다.** 썸네일/아바타 URL을 DB나 상수로 영구 저장하지 않고, 재생성 시점마다 새로 받아 쓴다.
-- 노션 이미지는 **반드시 `next/image`로 렌더링**한다 (`<img>` 금지). 원본이 1MB를 넘고, 서버가 한 번 받아 캐시하므로 방문자마다 만료 URL을 직접 때리지 않게 된다. 새 호스트가 필요하면 `next.config.ts`의 `images.remotePatterns`에 추가한다 — 등록되지 않은 호스트는 400으로 차단된다.
+- 노션 파일(이미지) URL은 **1시간 만료 서명 URL이다.** 썸네일/아바타 URL을 DB나 상수로 영구 저장하지 않고, 재생성 시점마다 새로 받아 쓴다. `og:image` 에 직접 넣지도 않는다 — §6-1 참고.
+- 노션 이미지는 **반드시 `next/image`로 렌더링**한다 (`<img>` 금지). 단 OG 이미지 생성 코드(`src/lib/og/**`)는 브라우저로 가지 않으므로 예외다 — §6-1 참고. 원본이 1MB를 넘고, 서버가 한 번 받아 캐시하므로 방문자마다 만료 URL을 직접 때리지 않게 된다. 새 호스트가 필요하면 `next.config.ts`의 `images.remotePatterns`에 추가한다 — 등록되지 않은 호스트는 400으로 차단된다.
 - `next/image`에 `fill`을 쓰지 않는다. position 래퍼 div가 필요해지고, 그러면 `Card`의 `has-[>img:first-child]:pt-0` / `*:[img:first-child]:rounded-t-xl` 선택자가 첫 자식이 img가 아니게 되어 깨진다. width/height + `aspect-*`/`object-cover`로 처리한다.
 - 429 재시도는 `src/lib/notion/client.ts`의 `new Client({ retry: { maxRetries: 3 } })`가 담당한다 (FR-11). 각 쿼리 함수에 재시도 루프를 손으로 만들지 않는다.
 - 모든 노션 호출은 `try/catch`로 감싼다. 사용자에게는 일반화된 메시지, 서버 로그에는 상세 원인.
@@ -179,6 +194,70 @@ const skills =
 | `PROJECT_NOT_FOUND` | 존재하지 않거나 비공개 프로젝트 | 404 |
 | `NOTION_API_ERROR` | Notion 호출 실패(재시도 소진) | 502 |
 | `PDF_GENERATION_FAILED` | PDF 생성 오류 | 500 |
+| `INVALID_REQUEST` | 본문이 JSON 이 아니거나 `path` 가 허용 목록 밖 | 400 |
+| `UNAUTHORIZED` | `/api/revalidate` 시크릿 불일치·누락 | 401 |
+| `REVALIDATE_NOT_CONFIGURED` | `REVALIDATE_SECRET` 미설정 | 503 |
+| `REVALIDATE_FAILED` | `revalidatePath` 실행 오류 | 500 |
+
+**시크릿을 검증하는 라우트 규칙**
+
+- ❌ `provided === expected` — 앞에서부터 비교하다 멈춰서 응답 시간으로 한 글자씩 추측당한다.
+- ✅ 양쪽을 `sha256` 해시한 뒤 `timingSafeEqual` 로 비교한다. 길이가 달라도 성립한다.
+- 시크릿 환경변수가 **없으면 열지 말고 막는다**(503). 미설정 상태로 배포돼 누구나
+  호출할 수 있게 되는 사고를 막기 위함이다.
+- 경로·대상은 화이트리스트로 제한한다. 사용자가 준 문자열을 `revalidatePath` 에 그대로 넘기지 않는다.
+- `export const dynamic = "force-dynamic"` 을 건다. 캐시되면 두 번째 호출부터 실제로 실행되지 않는다.
+
+---
+
+## 6-1. SEO · 메타데이터 표준 (FR-10)
+
+### 메타데이터 병합은 얕다 — 레이아웃 값이 상속될 거라 기대하지 않는다
+
+페이지가 `openGraph` 를 지정하는 순간 레이아웃의 `openGraph`(`type`/`locale`/`siteName`)는
+**상속되지 않고 통째로 대체**된다. `twitter` 도 마찬가지라 `card` 가 기본값 `summary` 로
+되돌아가 큰 이미지 미리보기가 사라진다.
+
+- ✅ `src/lib/seo.ts` 의 `buildSocialMetadata()` 로 공통 필드를 매번 함께 채운다.
+- ❌ 페이지에서 `openGraph: { title, description }` 만 적기.
+
+### `robots` 는 전역(레이아웃)에 걸지 않는다
+
+전역에 걸면 Next 가 404 에 자체적으로 넣는 `noindex` 와 겹쳐 모순된 robots 메타태그가
+두 개 나간다. 색인 대상 페이지에서 `INDEXABLE_ROBOTS` 를 쓴다.
+
+### 절대 URL 은 `src/lib/site.ts` 로만 만든다
+
+- OG·canonical·sitemap·robots 는 절대 URL 이 필요하다. `getSiteUrl()` / `absoluteUrl()` 을 쓴다.
+- 도메인을 하드코딩하지 않는다. `SITE_URL` → `VERCEL_PROJECT_PRODUCTION_URL` → `VERCEL_URL` → localhost 순 폴백이다.
+- `SITE_URL` 에 `NEXT_PUBLIC_` 을 붙이지 않는다. 서버에서만 쓴다.
+
+### OG 이미지는 `next/og` 로 생성한다
+
+- ❌ 노션 파일 URL 을 `og:image` 에 직접 넣기. 서명 URL 이 **1시간 뒤 만료**되어, 나중에
+  받아가는 크롤러에게 403 이 된다.
+- ✅ `opengraph-image.tsx` 파일 컨벤션으로 생성한다. 생성 시점에 이미지를 한 번 받아 PNG 로
+  구워두므로 만료와 무관해진다.
+- `generateMetadata` 에서 `openGraph.images` 를 **지정하지 않는다.** 지정하면 파일 컨벤션으로
+  생성한 이미지가 대체된다.
+- 동적 세그먼트의 이미지 라우트에는 **`generateStaticParams` 를 따로 export** 한다. 페이지에만
+  있으면 이미지 라우트는 동적(ƒ)으로 남아 `revalidate` 가 적용되지 않고, 크롤러 요청마다
+  노션 조회 + satori 렌더가 통째로 다시 돈다.
+- 한글 폰트를 넘기지 않으면 제목이 빈 사각형(tofu)이 된다. `loadOgFonts()` 를 쓰고,
+  `next.config.ts` 의 `outputFileTracingIncludes` 에 해당 라우트를 등록한다.
+  **등록하지 않으면 로컬은 통과하고 배포 후에만 깨진다.**
+- satori 는 CSS 를 전부 지원하지 않는다. flexbox 만 쓰고, 자식이 둘 이상인 요소에
+  `display: "flex"` 를 명시한다. Tailwind 클래스와 CSS 변수는 동작하지 않는다.
+- **satori 에서 이미지를 그리는 방법은 `<img>` 뿐이다.** `background-image` 에 data URI 를
+  주면 **에러 없이 빈 영역**만 남는다(실측). `next/image` 도 쓸 수 없다.
+  → `src/lib/og/**` 에 한해 `@next/next/no-img-element` 를 끈 예외가 `eslint.config.mjs` 에 있다.
+  이 예외를 다른 디렉터리로 넓히지 않는다.
+
+### `generateMetadata` 와 페이지가 같은 데이터를 쓰면 조회를 공유한다
+
+둘은 각각 실행되므로 그냥 두면 요청당 노션 호출이 2배가 된다.
+`src/lib/notion/queries.ts` 의 조회 함수는 React `cache()` 로 감싸져 있다. 새 조회 함수를
+추가할 때도 `cache()` 로 감싼다.
 
 ---
 
