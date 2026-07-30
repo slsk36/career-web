@@ -335,7 +335,16 @@ export function mapNotionPageToCareer(page: PageObjectResponse): Career {
 | `puppeteer` + HTML | 웹에서 보이는 레이아웃을 그대로 PDF로 변환 | Chromium 바이너리 필요, 서버리스 배포 크기/콜드스타트 문제 | 낮음 |
 | `jspdf` (+ `html2canvas`) | 클라이언트 사이드에서 즉시 실행 가능 | 이미지 캡처 방식이라 텍스트 선택 불가, 한글/고해상도 품질 저하 | 결과물 품질이 이력서 용도에 부적합 |
 
-**추천: `@react-pdf/renderer`** — 서버리스 배포 적합성과 텍스트 기반 PDF 품질(선택/검색 가능한 텍스트) 때문에 견적서 MVP와 동일하게 추천한다. `/api/resume/pdf` 라우트에서 프로필+경력 데이터를 이력서 템플릿 컴포넌트에 주입해 `renderToStream`으로 응답한다. **한글 폰트(Noto Sans KR 등)를 반드시 별도 등록**해야 한다(견적서 PRD와 동일한 이슈).
+**추천: `@react-pdf/renderer`** — 서버리스 배포 적합성과 텍스트 기반 PDF 품질(선택/검색 가능한 텍스트) 때문에 견적서 MVP와 동일하게 추천한다. `/api/resume/pdf` 라우트에서 프로필+경력 데이터를 이력서 템플릿에 주입해 응답한다. **한글 폰트(Noto Sans KR 등)를 반드시 별도 등록**해야 한다.
+
+**구현 시 확정된 사항 (2026-07-30)**
+
+- `renderToStream` 대신 **`renderToBuffer`** 를 쓴다. 스트림은 렌더링 도중 실패하면 이미 200 을 보낸 상태가 되어, 실패 시 `ApiResponse` JSON + 5xx 를 반환한다는 이 문서의 에러 규약을 지킬 수 없다.
+- 템플릿은 `src/lib/pdf/resume-document.tsx` 에 두고, **컴포넌트가 아니라 `Document` 엘리먼트를 반환하는 팩토리 함수**로 만든다. `renderToBuffer` 가 `ReactElement<DocumentProps>` 를 요구하므로 커스텀 컴포넌트로 감싸면 타입 캐스팅이 필요해진다.
+- 폰트는 Google Fonts 의 **한국어 서브셋 정적 TTF**(400/700, 각 약 2.4MB)를 `src/assets/fonts/` 에 두고 OFL 라이선스를 함께 보관한다. google/fonts 저장소의 원본은 변수 폰트뿐이고 기본 인스턴스가 Thin(100)이라 이력서용으로 부적합하다.
+- ⚠️ **서브셋 폰트에 없는 문자는 두부(□)가 아니라 엉뚱한 글자로 렌더링된다** (실측: `→` → `’`). 조용히 내용이 망가지므로 `src/lib/pdf/sanitize.ts` 가 폰트의 `characterSet` 을 조회해 미지원 문자를 ASCII 대응물로 치환하고 서버 로그에 남긴다. 새 기호를 지원해야 하면 이 파일의 치환표에 추가한다.
+- 라우트에 `revalidate = 3600` 을 건다. Next 15 는 GET 라우트를 기본 동적 처리하므로, 이 값이 없으면 방문마다 노션을 호출해 FR-9 를 위반한다.
+- 폰트를 런타임에 `process.cwd()` 기준으로 읽으므로 `next.config.ts` 의 `outputFileTracingIncludes` 에 폰트 경로를 넣어야 한다. 누락 시 로컬은 통과하고 배포 후에만 실패한다.
 
 ---
 

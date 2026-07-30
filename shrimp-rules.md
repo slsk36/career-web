@@ -151,6 +151,8 @@ const skills =
 ### 5.2 ISR
 
 - 데이터 조회 경로에는 `revalidate`를 건다. **기본값 3600초(1시간)**.
+- ❌ `export const revalidate = REVALIDATE_SECONDS` — **상수 import 금지.** Next가 이 값을 정적 분석하므로 `Invalid segment configuration export detected`로 빌드가 깨진다.
+- ✅ `export const revalidate = 3600` — 리터럴로 쓰고 주석으로 의미를 남긴다. 주기를 바꿀 때는 `src/app/page.tsx`와 `src/app/projects/[id]/page.tsx`를 **함께** 고친다.
 - ❌ `export const dynamic = "force-dynamic"` 또는 `cache: "no-store"`를 공개 페이지에 사용 금지. 방문 요청마다 Notion API를 호출하게 되어 FR-9 위반이다.
 
 ### 5.3 API 라우트는 두 개만
@@ -211,7 +213,10 @@ const skills =
 | `@notionhq/client` | Notion API | 서버 전용. 대체 라이브러리 임의 선택 금지 |
 | `@react-pdf/renderer` | 이력서 PDF | `puppeteer` / `jspdf` 사용 금지 (PRD 비교표에서 탈락) |
 
-- PDF에는 **한글 폰트(Noto Sans KR 등)를 반드시 `Font.register`로 임베드**한다. 폰트 없이 구현하면 한글이 깨진다.
+- PDF에는 **한글 폰트를 반드시 `Font.register`로 임베드**한다 (`src/lib/pdf/fonts.ts`). 폰트 없이 구현하면 한글이 깨진다.
+- **PDF에 넣는 모든 사용자 텍스트는 `sanitizeForPdf()`(또는 `sanitizeProfile`/`sanitizeCareers`)를 거친다.** 임베드 폰트는 한국어 서브셋이라 `→ ← ※ ①` 같은 기호가 **두부(□)가 아니라 다른 글자로 조용히 치환**된다. 정제를 건너뛰면 이력서 내용이 망가진 채 배포된다.
+- PDF 템플릿은 `src/lib/pdf/`에 둔다. `@react-pdf/renderer`의 `View`/`Text`는 DOM 컴포넌트가 아니고 Tailwind 클래스가 통하지 않으므로 `src/components/`에 섞지 않는다.
+- 폰트 파일을 교체하면 `sanitize.ts`가 참조하는 경로와 `next.config.ts`의 `outputFileTracingIncludes`를 함께 확인한다.
 
 ### 8.2 MVP에서 사용하지 않는 기존 의존성
 
