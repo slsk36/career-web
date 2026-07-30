@@ -6,8 +6,12 @@
  * 노션에서 속성 이름을 바꾸면 이 파일만 고치면 된다.
  */
 
-/** ISR 재생성 주기(초). 페이지의 `export const revalidate` 에 사용한다. */
-export const REVALIDATE_SECONDS = 3600;
+/**
+ * ISR 재생성 주기는 각 페이지에서 `export const revalidate = 3600` 리터럴로 직접 선언한다.
+ * Next.js 는 이 값을 정적 분석하므로 상수를 import 해서 쓸 수 없다
+ * ("Invalid segment configuration export detected" 로 빌드 실패).
+ * 주기를 바꿀 때는 `src/app/page.tsx` 와 `src/app/projects/[id]/page.tsx` 를 함께 고칠 것.
+ */
 
 /** 경력·프로젝트 공통 공개여부 속성명 */
 export const STATUS_PROPERTY = "공개여부";
