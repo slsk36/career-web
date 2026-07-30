@@ -1,20 +1,23 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist } from "next/font/google";
 import { ThemeProvider } from "@/components/providers/theme-provider";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { SITE_NAME } from "@/lib/seo";
 import { getSiteUrlObject } from "@/lib/site";
 import "./globals.css";
 
-// globals.css 의 --font-sans / --font-geist-mono 변수와 매핑되는 폰트
+/**
+ * globals.css 의 `--font-sans` 와 매핑되는 본문 폰트.
+ *
+ * Geist 에는 한글 글리프가 없어 한국어 본문은 시스템 폰트로 폴백된다.
+ * 이건 의도한 것이다 — 한글 웹폰트는 서브셋을 해도 수백 KB 라 LCP 에 불리하고,
+ * 이 폰트가 실제로 그리는 건 숫자·날짜·기술명 같은 라틴 문자다.
+ *
+ * Geist Mono 는 걷어냈다. `font-mono` 를 쓰는 곳이 한 군데도 없는데
+ * 폰트 파일 하나(약 25KB)를 매번 더 받고 있었다. 다시 필요해지면 그때 추가한다.
+ */
 const geistSans = Geist({
   variable: "--font-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
   subsets: ["latin"],
 });
 
@@ -56,16 +59,19 @@ export default function RootLayout({
   return (
     // suppressHydrationWarning: next-themes가 html 태그의 class를 클라이언트에서 변경하므로 필요
     <html lang="ko" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${geistSans.variable} antialiased`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-          <TooltipProvider>{children}</TooltipProvider>
+          {/*
+            TooltipProvider 를 걷어냈다. 앱 전체를 감싸고 있었지만 정작 Tooltip 을
+            쓰는 화면이 하나도 없어서, Radix 툴팁 코드만 모든 페이지 번들에 실렸다.
+            툴팁이 필요해지면 그 화면에서만 Provider 로 감싼다.
+          */}
+          {children}
           <Toaster richColors position="top-center" />
         </ThemeProvider>
       </body>
