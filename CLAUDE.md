@@ -6,7 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 npm run dev      # 개발 서버 (Turbopack, http://localhost:3000)
-npm run build    # 프로덕션 빌드 (Turbopack)
+npm run build    # 프로덕션 빌드 (Turbopack) — 현재 버그로 실패한다, 아래 참고
+npx next build   # 프로덕션 빌드 (webpack) — 빌드 확인은 이 명령으로 한다
 npm run start    # 빌드 결과 실행
 npm run lint     # ESLint (flat config, next/core-web-vitals + next/typescript)
 npx tsc --noEmit # 타입 체크 (별도 스크립트 없음)
@@ -57,6 +58,26 @@ Server Component + ISR (revalidate 기본 1시간)
 - import 는 `@/*` 별칭 사용 (`@/components`, `@/lib`, `@/types`)
 - 모든 화면 반응형 필수 — 모바일에서 프로젝트 그리드 1열, 경력 타임라인 세로형
 - 주석/문서는 한국어
+
+## 작업 완료 체크리스트
+
+코드를 수정했으면 **아래 3개를 순서대로 전부 통과한 뒤에** 작업 완료를 보고한다. 통과 여부를 확인하지 않고 "완료"라고 말하지 않는다.
+
+```bash
+npm run lint      # 1. 린트 체크
+npx tsc --noEmit  # 2. 타입 체크
+npx next build    # 3. 빌드 체크 — npm run build 가 아니다 (아래 참고)
+```
+
+> **빌드 체크는 `npm run build` 가 아니라 `npx next build` 로 돌린다.**
+> `npm run build` 는 `next build --turbopack` 인데, Next.js 15.5.21 의 Turbopack 프로덕션 빌드에는 정적 페이지 생성까지 성공한 뒤 `.next/server/pages-manifest.json` 을 찾지 못해 실패하는 버그가 있다(파일은 실제로 존재한다. `.next` 삭제 후에도 재현). webpack 빌드(`npx next build`)는 정상 통과한다.
+> `package.json` 의 `build` 스크립트는 Turbopack 을 그대로 유지하기로 했으므로(개발 속도 이점 유지), 체크 명령만 다르게 쓴다. Next.js 업그레이드로 버그가 해소되면 이 예외를 제거하고 `npm run build` 로 되돌린다.
+
+- **앞 단계가 실패하면 고친 뒤 다시 처음부터** 돌린다. 실패한 채로 다음 단계로 넘어가지 않는다.
+- 문서/주석만 고친 경우(`.md` 등)는 생략해도 된다. 그 외 `src/` 변경은 예외 없이 3개 모두 돌린다.
+- 에러를 **주석 처리·`eslint-disable`·`any`·`@ts-ignore` 로 덮어서 통과시키지 않는다.** 원인을 고친다. 정말 불가피하면 사용자에게 먼저 확인한다.
+- 실패가 남아 있으면 **숨기지 말고 명령어 출력 그대로 보고**한다. 내 변경과 무관한 기존 실패라면 그 사실을 함께 밝힌다.
+- 커밋은 이 체크리스트를 통과한 뒤에 한다.
 
 ## Git
 
