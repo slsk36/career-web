@@ -24,14 +24,16 @@
   - Notion Integration 생성 및 API 키 발급 (PRD "사전 준비 사항" 체크리스트 참고)
   - 프로필/경력/프로젝트 3개 데이터베이스에 Integration 연결, DB ID 확보
   - `@notionhq/client` 설치, `.env.local`에 `NOTION_API_KEY`, `NOTION_PROFILE_DB_ID`, `NOTION_CAREER_DB_ID`, `NOTION_PROJECTS_DB_ID` 등록
-  - 간단한 테스트 스크립트로 `databases.query` 1회 호출해 연결 확인
+  - 간단한 테스트 스크립트로 `dataSources.query` 1회 호출해 연결 확인
 - 기본 레이아웃 구조 생성 (전역 헤더/푸터 자리, Tailwind/shadcn 설정 점검)
 
 **완료 기준**
 - [ ] `npm run dev`로 로컬 서버가 정상 구동된다
-- [ ] 테스트 스크립트가 노션 3개 DB로부터 데이터를 실제로 받아온다 (인증/권한 오류 없음)
+- [x] 테스트 스크립트가 노션 3개 DB로부터 데이터를 실제로 받아온다 (인증/권한 오류 없음)
+      — 2026-07-29 확인. Integration `career web 연결`, Notion-Version `2022-06-28`.
+      3개 DB 스키마를 PRD 표대로 생성 완료, `공개여부` 옵션은 `draft`/`published`.
 - [ ] 홈/`projects/[id]` 라우트 파일이 생성되어 있고 빈 페이지라도 렌더링된다
-- [ ] `.env.local`이 `.gitignore`에 포함되어 있어 키가 커밋되지 않는다
+- [x] `.env.local`이 `.gitignore`에 포함되어 있어 키가 커밋되지 않는다 (`.env*` + `!.env.example`)
 
 ---
 
@@ -50,10 +52,21 @@
   - `Profile`, `Career`, `Project`, `PublishStatus` — PRD 7번에 정의된 인터페이스 그대로 사용
 
 **완료 기준**
-- [ ] `fetchProfile/fetchCareers/fetchProjects`가 방어적 파싱(FR-7)을 포함해 정상 동작한다 (필드 누락 시 예외 없이 기본값 반환)
-- [ ] `공개여부: draft`인 항목이 조회 결과에서 제외된다 (FR-6)
-- [ ] `Header/Footer/Card/Badge/Timeline` 컴포넌트가 더미 데이터로 독립 렌더링 확인된다
-- [ ] 공통 타입에 `any`가 없다
+- [x] `fetchProfile/fetchCareers/fetchProjects`가 방어적 파싱(FR-7)을 포함해 정상 동작한다 (필드 누락 시 예외 없이 기본값 반환)
+      — 2026-07-29 더미 행으로 검증 완료 후 더미는 보관 처리.
+      `fetchProfile` 은 2026-07-30 실데이터(이름/직함/자기소개/블로그 입력, 나머지 4개 미입력)로
+      재검증. 입력 필드는 정상 매핑, 미입력 필드는 `null` 폴백.
+      종료일 없음 → `endDate: null`(재직중), 누락 필드 폴백(`""`/`null`/`[]`),
+      multi_select → `string[]`, date 범위 → `periodStart/End`, files(external) → `thumbnailUrl` 확인.
+- [x] `공개여부: draft`인 항목이 조회 결과에서 제외된다 (FR-6)
+      — 목록 조회(쿼리 필터) 및 `fetchProjectById` 단건 조회 모두 draft 제외 확인.
+      없는 ID 조회 시에도 예외 없이 `null` 반환.
+- [x] `Header/Footer/Card/Badge/Timeline` 컴포넌트가 더미 데이터로 독립 렌더링 확인된다
+      — `SkillBadges` / `CareerTimeline` / `ProjectCard` 를 `src/components/portfolio/` 에 구현.
+      임시 라우트로 prerender 하여 출력 HTML 검증 후 라우트 삭제 (2026-07-30).
+      확인 항목: 재직중 라벨, 기간 포맷(`2022.03 ~ 재직중`), 빈 배열 시 미렌더링,
+      빈 목록 폴백 문구, 썸네일 유무 분기, 카드 전체 클릭 링크.
+- [x] 공통 타입에 `any`가 없다 (`npx tsc --noEmit` 통과)
 
 ---
 

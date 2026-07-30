@@ -111,7 +111,12 @@ flowchart TD
 
 ### 조회 방식 (상세)
 
-- 프로필/경력/프로젝트 모두 `databases.query`로 조회하며, 경력·프로젝트는 `filter: { property: "공개여부", status: { equals: "공개" } }` 조건을 항상 포함한다.
+- 프로필/경력/프로젝트 모두 `dataSources.query`로 조회하며, 경력·프로젝트는 `filter: { property: "공개여부", status: { equals: "published" } }` 조건을 항상 포함한다.
+  - ⚠️ **`databases.query` 는 `@notionhq/client` 5.x 에서 제거되었다.** 조회는 DB 단위가 아니라 **데이터 소스(data source) 단위**로 하며, `data_source_id` 가 필요하다.
+  - `data_source_id` 는 환경변수로 따로 받지 않는다. `databases.retrieve({ database_id })` 응답의 `data_sources[0].id` 로 해석하고 프로세스 수명 동안 캐시한다 (`src/lib/notion/client.ts` 의 `getDataSourceId`). 이렇게 하면 `.env.local` 은 DB ID 3개만 유지하면 된다.
+  - 이 프로젝트의 3개 DB 는 각각 데이터 소스가 정확히 1개다 (2026-07-29 확인).
+  - **`공개여부` status 옵션 이름은 `draft` / `published` 로 통일한다.** 노션 DB의 상태 옵션 이름(표시 문자열)을 이 값과 정확히 일치시켜야 하며, 한글("초안"/"공개") 등 다른 이름을 쓰면 필터가 조용히 0건을 반환한다.
+  - 이 문자열은 코드에 흩뿌리지 말고 `src/lib/notion/constants.ts` 같은 한 곳에 상수로 정의해 쿼리 필터와 `parseStatus`가 같은 값을 참조하게 한다. 노션에서 옵션 이름을 바꾸면 상수 한 곳만 고치면 되도록 한다.
 - 캐싱은 Supabase 같은 별도 DB 없이 **Next.js의 `fetch` 캐시 + `revalidate`(ISR)** 로 처리하는 것을 기본으로 한다. 개인 포트폴리오는 트래픽 패턴이 예측 가능하고 실시간성이 중요하지 않으므로, 견적서 MVP에서 사용한 Supabase 캐시 테이블 같은 별도 인프라는 이 시점에서 과설계다. 트래픽이 커지거나 실시간 반영이 필요해지면 그때 Supabase 캐싱을 P2로 검토한다.
 - 재생성 주기(`revalidate`)는 기본 1시간으로 설정하고, 운영자가 "지금 바로 반영"이 필요하면 Next.js `revalidatePath`를 호출하는 관리자 전용 엔드포인트(FR와 별개, P1)를 열어둘 수 있다.
 
@@ -229,7 +234,8 @@ export interface Project {
 
 ```typescript
 // src/lib/notion/mappers.ts
-import type { PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
+// SDK 5.x 부터 타입은 루트에서 export 된다 (build/src/api-endpoints 경로 아님)
+import type { PageObjectResponse } from "@notionhq/client";
 import type { Career, PublishStatus } from "@/types/portfolio";
 
 function extractPlainText(richText: { plain_text: string }[] | undefined): string {

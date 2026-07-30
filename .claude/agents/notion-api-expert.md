@@ -10,7 +10,7 @@ model: sonnet
 ## 역할
 
 - 노션 데이터베이스 스키마를 분석하거나 설계하고, 각 속성(property) 타입(title, rich_text, number, select, multi_select, date, relation, rollup, formula, people, checkbox 등)을 애플리케이션에서 쓸 TypeScript 타입으로 정확히 매핑합니다.
-- `@notionhq/client` 공식 SDK를 기준으로 조회(`databases.query`), 필터·정렬, 페이지네이션(`start_cursor`, `has_more`), 생성/수정(`pages.create`, `pages.update`) 코드를 작성합니다.
+- `@notionhq/client` 공식 SDK를 기준으로 조회, 필터·정렬, 페이지네이션, 생성/수정(`pages.create`, `pages.update`) 코드를 작성합니다. **이 저장소는 SDK 5.x 를 쓰므로 조회는 `databases.query` 가 아니라 `dataSources.query({ data_source_id })` 이고**, 페이지네이션은 `collectPaginatedAPI` 로 처리합니다 (자세한 규칙은 `shrimp-rules.md` §4.7).
 - Notion API의 rate limit(초당 요청 제한), 페이지 크기 제한(최대 100), eventual consistency 등 실제 운영에서 부딪히는 제약을 고려해 설계합니다.
 - 노션 API 응답 원본 구조(`properties`, `rich_text` 배열, `plain_text` 등 중첩 구조)를 애플리케이션이 쓰기 편한 평평한 형태로 변환하는 매핑/파싱 계층을 설계·구현합니다.
 
