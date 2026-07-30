@@ -42,38 +42,47 @@ export default async function HomePage() {
           </section>
         )}
 
-        {profile?.bio ? (
-          <section className="mx-auto max-w-3xl px-4 pb-14 sm:px-6">
-            <h2 className="mb-4 text-xl font-semibold">소개</h2>
-            <p className="whitespace-pre-line text-muted-foreground">{profile.bio}</p>
+        {/*
+          모든 섹션이 같은 컨테이너를 공유해 제목의 왼쪽 끝이 일치하게 한다.
+          섹션마다 max-w 를 따로 주면 제목이 계단처럼 어긋난다(실측 192px 차이).
+          긴 글은 가독성을 위해 본문에만 max-w-3xl 을 걸고, 제목은 컨테이너 기준으로 정렬한다.
+        */}
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          {profile?.bio ? (
+            <section className="pb-14">
+              <h2 className="mb-4 text-xl font-semibold">소개</h2>
+              <p className="max-w-3xl whitespace-pre-line text-muted-foreground">{profile.bio}</p>
+            </section>
+          ) : null}
+
+          <section className="pb-14">
+            <h2 className="mb-6 text-xl font-semibold">경력</h2>
+            <div className="max-w-3xl">
+              {careersResult.status === "rejected" ? (
+                <UnavailableNotice />
+              ) : (
+                <CareerTimeline careers={careers} />
+              )}
+            </div>
           </section>
-        ) : null}
 
-        <section className="mx-auto max-w-3xl px-4 pb-14 sm:px-6">
-          <h2 className="mb-6 text-xl font-semibold">경력</h2>
-          {careersResult.status === "rejected" ? (
-            <UnavailableNotice />
-          ) : (
-            <CareerTimeline careers={careers} />
-          )}
-        </section>
-
-        <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">
-          <h2 className="mb-6 text-xl font-semibold">프로젝트</h2>
-          {projectsResult.status === "rejected" ? (
-            <UnavailableNotice />
-          ) : projects.length === 0 ? (
-            <p className="text-sm text-muted-foreground">등록된 프로젝트가 없습니다.</p>
-          ) : (
-            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {projects.map((project) => (
-                <li key={project.id}>
-                  <ProjectCard project={project} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+          <section className="pb-20">
+            <h2 className="mb-6 text-xl font-semibold">프로젝트</h2>
+            {projectsResult.status === "rejected" ? (
+              <UnavailableNotice />
+            ) : projects.length === 0 ? (
+              <p className="text-sm text-muted-foreground">등록된 프로젝트가 없습니다.</p>
+            ) : (
+              <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {projects.map((project) => (
+                  <li key={project.id}>
+                    <ProjectCard project={project} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
       </main>
 
       <SiteFooter />
