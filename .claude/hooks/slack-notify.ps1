@@ -18,14 +18,20 @@ try {
   $raw = [Console]::In.ReadToEnd()
   $payload = $null
   if (-not [string]::IsNullOrWhiteSpace($raw)) {
-    $payload = $raw | ConvertFrom-Json
+    # JSON 이 깨져 있어도 알림은 계속 보낸다
+    try { $payload = $raw | ConvertFrom-Json } catch { $payload = $null }
   }
 
-  $projectName = Split-Path -Leaf (Get-Location)
+  # 프로젝트 폴더명: 훅 JSON 의 cwd 우선, 없으면 현재 디렉터리
+  $projectPath = $null
+  if ($payload -and $payload.cwd) { $projectPath = [string]$payload.cwd }
+  if ([string]::IsNullOrWhiteSpace($projectPath)) { $projectPath = (Get-Location).Path }
+  $projectName = Split-Path -Leaf $projectPath
 
   if ($EventType -eq 'notification') {
     $detail = ''
-    if ($payload -and $payload.message) { $detail = $payload.message }
+    if ($payload -and $payload.message) { $detail = [string]$payload.message }
+    if ([string]::IsNullOrWhiteSpace($detail)) { $detail = 'Claude Code 가 입력을 기다리고 있습니다.' }
     $text = ":closed_lock_with_key: *Claude Code 권한 요청*`n프로젝트: $projectName`n내용: $detail"
   }
   else {
