@@ -2,7 +2,7 @@
 # 사용법: 훅 JSON을 stdin으로 받아 -EventType(notification|stop)에 따라 메시지를 보낸다
 param(
   [Parameter(Mandatory = $true)]
-  [ValidateSet('notification', 'stop')]
+  [ValidateSet('notification', 'stop', 'question')]
   [string]$EventType
 )
 
@@ -33,6 +33,26 @@ try {
     if ($payload -and $payload.message) { $detail = [string]$payload.message }
     if ([string]::IsNullOrWhiteSpace($detail)) { $detail = 'Claude Code 가 입력을 기다리고 있습니다.' }
     $text = ":closed_lock_with_key: *Claude Code 권한 요청*`n프로젝트: $projectName`n내용: $detail"
+  }
+  elseif ($EventType -eq 'question') {
+    # PreToolUse(AskUserQuestion) 훅 — tool_input 에서 질문과 선택지를 꺼내 담는다
+    $lines = @()
+    if ($payload -and $payload.tool_input -and $payload.tool_input.questions) {
+      foreach ($q in $payload.tool_input.questions) {
+        $qText = [string]$q.question
+        if (-not [string]::IsNullOrWhiteSpace($qText)) { $lines += "• $qText" }
+
+        $labels = @()
+        foreach ($opt in $q.options) {
+          $label = [string]$opt.label
+          if (-not [string]::IsNullOrWhiteSpace($label)) { $labels += $label }
+        }
+        if ($labels.Count -gt 0) { $lines += "    선택지: " + ($labels -join ' / ') }
+      }
+    }
+    if ($lines.Count -eq 0) { $lines += '질문 내용을 읽지 못했습니다. 터미널을 확인하세요.' }
+
+    $text = ":speech_balloon: *Claude Code 질문 대기 중*`n프로젝트: $projectName`n" + ($lines -join "`n")
   }
   else {
     $text = ":white_check_mark: *Claude Code 작업 완료*`n프로젝트: $projectName"
