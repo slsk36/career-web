@@ -121,7 +121,9 @@ const skills =
 
 ### 4.6 그 밖의 노션 규칙
 
-- 노션 파일(이미지) URL은 **만료된다.** 썸네일/아바타 URL을 DB나 상수로 영구 저장하지 않고, 재생성 시점마다 새로 받아 쓴다.
+- 노션 파일(이미지) URL은 **1시간 만료 서명 URL이다.** 썸네일/아바타 URL을 DB나 상수로 영구 저장하지 않고, 재생성 시점마다 새로 받아 쓴다.
+- 노션 이미지는 **반드시 `next/image`로 렌더링**한다 (`<img>` 금지). 원본이 1MB를 넘고, 서버가 한 번 받아 캐시하므로 방문자마다 만료 URL을 직접 때리지 않게 된다. 새 호스트가 필요하면 `next.config.ts`의 `images.remotePatterns`에 추가한다 — 등록되지 않은 호스트는 400으로 차단된다.
+- `next/image`에 `fill`을 쓰지 않는다. position 래퍼 div가 필요해지고, 그러면 `Card`의 `has-[>img:first-child]:pt-0` / `*:[img:first-child]:rounded-t-xl` 선택자가 첫 자식이 img가 아니게 되어 깨진다. width/height + `aspect-*`/`object-cover`로 처리한다.
 - 429 재시도는 `src/lib/notion/client.ts`의 `new Client({ retry: { maxRetries: 3 } })`가 담당한다 (FR-11). 각 쿼리 함수에 재시도 루프를 손으로 만들지 않는다.
 - 모든 노션 호출은 `try/catch`로 감싼다. 사용자에게는 일반화된 메시지, 서버 로그에는 상세 원인.
 
