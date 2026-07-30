@@ -249,7 +249,12 @@
 
 ### 5-3. 배포
 - Vercel 배포 — 환경변수(`NOTION_API_KEY`, DB ID 3개) 프로덕션 등록
-- `outputFileTracingIncludes` 가 실제로 동작해 배포 환경에서 PDF 폰트를 찾는지 확인
+- ✅ **`outputFileTracingIncludes` 는 배포 환경에서 동작한다 (2026-07-30 확인).**
+  `https://career-web-theta.vercel.app/api/resume/pdf` 가 200 으로 응답하고, 내려온 PDF 에
+  `NotoSansKRThin-Bold` / `NotoSansKRThin-Regular` 두 폰트가 실제로 임베드되어 있다.
+  "로컬은 통과하고 배포 후에만 실패" 하는 유형의 위험이었는데 해소됐다.
+  → 단 **OG 이미지 라우트 2개는 아직 미검증**이다. 같은 설정을 쓰지만 배포 시점에
+  Phase 4 커밋이 푸시되지 않은 상태였다. 푸시 후 `/opengraph-image` 로 다시 확인할 것.
   (로컬은 통과하고 배포 후에만 실패하는 종류의 문제다)
 - 커스텀 도메인 연결 여부 확인, 배포 후 스모크 테스트
 - `(샘플)` 접두사가 붙은 시드 데이터 삭제 — 실재하지 않는 경력이 공개되면 안 된다
