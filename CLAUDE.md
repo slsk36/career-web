@@ -7,13 +7,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 npm run dev      # 개발 서버 (Turbopack, http://localhost:3000)
 npm run build    # 프로덕션 빌드 (Turbopack) — 현재 버그로 실패한다, 아래 참고
-npx next build   # 프로덕션 빌드 (webpack) — 빌드 확인은 이 명령으로 한다
+npx next build   # 프로덕션 빌드 (webpack) — 빌드를 확인해야 할 때는 이 명령을 쓴다
 npm run start    # 빌드 결과 실행
 npm run lint     # ESLint (flat config, next/core-web-vitals + next/typescript)
 npx tsc --noEmit # 타입 체크 (별도 스크립트 없음)
 ```
 
-테스트 프레임워크는 아직 설치되어 있지 않다. 테스트가 필요해지면 사용자에게 도입 여부를 먼저 확인할 것.
+> **`npm run build` 는 현재 실패한다.** `next build --turbopack` 인데, Next.js 15.5.21 의 Turbopack 프로덕션 빌드에는 정적 페이지 생성까지 성공한 뒤 `.next/server/pages-manifest.json` 을 찾지 못해 실패하는 버그가 있다(파일은 실제로 존재한다. `.next` 삭제 후에도 재현). webpack 빌드(`npx next build`)는 정상 통과한다. `package.json` 의 `build` 스크립트는 개발 속도 때문에 Turbopack 을 유지하기로 했으므로, 빌드를 확인할 일이 있으면 `npx next build` 를 쓴다.
+
+유닛/통합 테스트 러너(Jest, Vitest 등)는 아직 설치되어 있지 않다. 저장소에 테스트 러너를 도입해야 할 상황이면 사용자에게 먼저 확인할 것. E2E 확인은 러너 설치 없이 Playwright MCP 로 브라우저를 직접 구동해서 한다(아래 [작업 완료 체크리스트](#작업-완료-체크리스트) 참고).
 
 shadcn/ui 컴포넌트는 직접 작성하지 말고 CLI 로 추가한다: `npx shadcn@latest add <name>` (shadcn CLI 3.x, `radix-nova` 프리셋 / `src/components/ui/` 에 생성).
 
@@ -63,18 +65,30 @@ Server Component + ISR (revalidate 기본 1시간)
 
 코드를 수정했으면 **아래 3개를 순서대로 전부 통과한 뒤에** 작업 완료를 보고한다. 통과 여부를 확인하지 않고 "완료"라고 말하지 않는다.
 
+**1. 통합 테스트 — Playwright MCP 로 E2E 확인**
+
+`npm run dev` 로 개발 서버를 띄운 뒤 Playwright MCP 로 실제 브라우저를 열어 확인한다.
+
+- 변경된 화면이 정상 렌더링되는지, 주요 인터랙션(링크 이동, 다운로드 버튼, 테마 토글 등)이 동작하는지
+- 브라우저 콘솔 에러 / 네트워크 실패가 없는지
+- **모바일 뷰포트도 함께 확인**한다 — 반응형은 이 프로젝트의 필수 규칙이다
+- 스크린샷으로 결과를 확인하고, 깨진 부분이 있으면 고친 뒤 다시 확인한다
+
+**2. 린트 체크**
+
 ```bash
-npm run lint      # 1. 린트 체크
-npx tsc --noEmit  # 2. 타입 체크
-npx next build    # 3. 빌드 체크 — npm run build 가 아니다 (아래 참고)
+npm run lint
 ```
 
-> **빌드 체크는 `npm run build` 가 아니라 `npx next build` 로 돌린다.**
-> `npm run build` 는 `next build --turbopack` 인데, Next.js 15.5.21 의 Turbopack 프로덕션 빌드에는 정적 페이지 생성까지 성공한 뒤 `.next/server/pages-manifest.json` 을 찾지 못해 실패하는 버그가 있다(파일은 실제로 존재한다. `.next` 삭제 후에도 재현). webpack 빌드(`npx next build`)는 정상 통과한다.
-> `package.json` 의 `build` 스크립트는 Turbopack 을 그대로 유지하기로 했으므로(개발 속도 이점 유지), 체크 명령만 다르게 쓴다. Next.js 업그레이드로 버그가 해소되면 이 예외를 제거하고 `npm run build` 로 되돌린다.
+**3. 타입 체크**
+
+```bash
+npx tsc --noEmit
+```
 
 - **앞 단계가 실패하면 고친 뒤 다시 처음부터** 돌린다. 실패한 채로 다음 단계로 넘어가지 않는다.
 - 문서/주석만 고친 경우(`.md` 등)는 생략해도 된다. 그 외 `src/` 변경은 예외 없이 3개 모두 돌린다.
+- 화면에 영향이 없는 변경(타입 정의, 서버 유틸 등)이라도 **1번을 건너뛰지 않는다.** 최소한 해당 화면이 여전히 정상 렌더링되는지는 확인한다.
 - 에러를 **주석 처리·`eslint-disable`·`any`·`@ts-ignore` 로 덮어서 통과시키지 않는다.** 원인을 고친다. 정말 불가피하면 사용자에게 먼저 확인한다.
 - 실패가 남아 있으면 **숨기지 말고 명령어 출력 그대로 보고**한다. 내 변경과 무관한 기존 실패라면 그 사실을 함께 밝힌다.
 - 커밋은 이 체크리스트를 통과한 뒤에 한다.
