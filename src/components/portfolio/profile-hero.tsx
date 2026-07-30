@@ -36,11 +36,19 @@ function splitEmail(email: string | null) {
 export function ProfileHero({ profile }: ProfileHeroProps) {
   return (
     <section className="mx-auto flex max-w-4xl flex-col items-center gap-4 px-4 py-14 text-center sm:px-6 sm:py-20">
-      <Avatar size="lg" className="size-20 sm:size-24">
+      {/*
+        size 프리셋을 쓰지 않는다. `size="lg"` 는 40px 짜리 프리셋인데
+        `data-[size=lg]:size-10` 이 속성 선택자로 컴파일되어 명시도가 더 높아,
+        className 의 일반 유틸리티(`size-28`)를 이겨버린다.
+        프리셋을 빼면 base 의 `size-8` 만 남고 이건 tailwind-merge 가 정리해준다.
+      */}
+      <Avatar className="size-28 sm:size-32">
         {profile.avatarUrl ? (
           <AvatarImage src={profile.avatarUrl} alt={`${profile.name} 프로필 사진`} />
         ) : null}
-        <AvatarFallback className="text-xl">{toInitials(profile.name)}</AvatarFallback>
+        <AvatarFallback className="text-3xl sm:text-4xl">
+          {toInitials(profile.name)}
+        </AvatarFallback>
       </Avatar>
 
       {profile.name ? (
