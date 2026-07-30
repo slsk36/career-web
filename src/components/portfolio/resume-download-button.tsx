@@ -70,10 +70,27 @@ async function extractErrorMessage(response: Response): Promise<string> {
   return "이력서를 생성하지 못했습니다. 잠시 후 다시 시도해주세요.";
 }
 
-/** Content-Disposition 의 filename 을 쓰고, 없으면 기본값을 쓴다. */
+/**
+ * Content-Disposition 에서 파일명을 뽑는다.
+ *
+ * 헤더에는 `filename="resume.pdf"`(ASCII 폴백)와 `filename*=UTF-8''...`(한글)이 함께 온다.
+ * **`filename*` 을 먼저 봐야 한다.** 하나의 정규식으로 처리하면 앞에 있는 ASCII 폴백이
+ * 먼저 매칭되어 한글 파일명이 무시된다.
+ */
 function resolveFileName(response: Response): string {
   const disposition = response.headers.get("Content-Disposition") ?? "";
-  const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
-  if (match?.[1]) return decodeURIComponent(match[1]);
+
+  const utf8 = /filename\*=UTF-8''([^;]+)/i.exec(disposition);
+  if (utf8?.[1]) {
+    try {
+      return decodeURIComponent(utf8[1].trim());
+    } catch {
+      // 잘못 인코딩된 값이면 아래 ASCII 폴백으로 넘어간다.
+    }
+  }
+
+  const ascii = /filename="?([^";]+)"?/i.exec(disposition);
+  if (ascii?.[1]) return ascii[1].trim();
+
   return "resume.pdf";
 }
