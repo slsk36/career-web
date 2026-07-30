@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -10,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { formatPeriod } from "@/lib/format";
 import { fetchProjectById, fetchProjects } from "@/lib/notion/queries";
+import { buildMetaDescription, buildSocialMetadata, INDEXABLE_ROBOTS } from "@/lib/seo";
 
 /** ISR (FR-9) — 1시간. 리터럴이어야 한다 (Next 가 정적 분석함). */
 export const revalidate = 3600;
@@ -31,6 +33,42 @@ export async function generateStaticParams() {
 
 interface ProjectDetailPageProps {
   params: Promise<{ id: string }>;
+}
+
+/**
+ * 프로젝트 상세 메타데이터 (FR-10).
+ *
+ * `fetchProjectById` 는 `cache()` 로 감싸져 있어 아래 페이지 렌더와 노션 호출을 공유한다.
+ * OG 이미지는 `opengraph-image.tsx` 가 자동 연결되므로 여기서 지정하지 않는다.
+ */
+export async function generateMetadata({ params }: ProjectDetailPageProps): Promise<Metadata> {
+  const { id } = await params;
+  const project = await fetchProjectById(id);
+
+  // 404 로 이어질 요청이다. 색인되지 않도록 명시한다.
+  if (!project) {
+    return { title: "찾을 수 없는 프로젝트", robots: { index: false, follow: false } };
+  }
+
+  const description = buildMetaDescription(
+    [project.summary, project.description],
+    `${project.title} 프로젝트 소개입니다.`
+  );
+  const canonical = `/projects/${id}`;
+
+  return {
+    // 레이아웃 템플릿이 적용되어 "프로젝트명 | 포트폴리오" 가 된다.
+    title: project.title,
+    description,
+    alternates: { canonical },
+    robots: INDEXABLE_ROBOTS,
+    ...buildSocialMetadata({
+      title: project.title,
+      description,
+      path: canonical,
+      type: "article",
+    }),
+  };
 }
 
 export default async function ProjectDetailPage({ params }: ProjectDetailPageProps) {

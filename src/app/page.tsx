@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
+
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { CareerTimeline } from "@/components/portfolio/career-timeline";
 import { ProfileHero } from "@/components/portfolio/profile-hero";
 import { ProjectCard } from "@/components/portfolio/project-card";
 import { fetchCareers, fetchProfile, fetchProjects } from "@/lib/notion/queries";
+import { buildMetaDescription, buildSocialMetadata, INDEXABLE_ROBOTS, SITE_NAME } from "@/lib/seo";
 import type { Career, Profile, Project } from "@/types/portfolio";
 
 /**
@@ -11,6 +14,39 @@ import type { Career, Profile, Project } from "@/types/portfolio";
  * Next.js 가 정적 분석하는 값이므로 상수 import 가 아닌 리터럴이어야 한다.
  */
 export const revalidate = 3600;
+
+/**
+ * 홈 메타데이터 (FR-10).
+ *
+ * `fetchProfile` 은 `cache()` 로 감싸져 있어 아래 페이지 렌더와 노션 호출을 공유한다.
+ * OG 이미지는 `opengraph-image.tsx` 파일 컨벤션으로 Next 가 자동 연결하므로
+ * 여기서 `openGraph.images` 를 지정하지 않는다. 지정하면 생성 이미지가 대체된다.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  let profile: Profile | null = null;
+  try {
+    profile = await fetchProfile();
+  } catch (error) {
+    // 메타데이터 생성 실패로 페이지 전체가 죽지 않게 한다. 레이아웃의 기본값이 쓰인다.
+    console.error("[home] 메타데이터용 프로필 조회 실패:", error);
+  }
+
+  const name = profile?.name?.trim() || SITE_NAME;
+  const title = `${name} | ${SITE_NAME}`;
+  const description = buildMetaDescription(
+    [profile?.headline, profile?.bio],
+    "경력과 프로젝트를 소개하는 개인 포트폴리오 사이트입니다."
+  );
+
+  return {
+    // 레이아웃의 `%s | 포트폴리오` 템플릿이 중복 적용되지 않도록 absolute 로 지정한다.
+    title: { absolute: title },
+    description,
+    alternates: { canonical: "/" },
+    robots: INDEXABLE_ROBOTS,
+    ...buildSocialMetadata({ title, description, path: "/" }),
+  };
+}
 
 /**
  * 홈 페이지 — 프로필 / 자기소개 / 경력 / 프로젝트 / 이력서 다운로드
