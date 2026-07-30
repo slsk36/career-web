@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
@@ -54,11 +55,14 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
         </Button>
 
         {project.thumbnailUrl ? (
-          // TODO: Phase 5 에서 next/image 로 교체한다.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={project.thumbnailUrl}
             alt={`${project.title} 대표 이미지`}
+            width={768}
+            height={432}
+            // 상세 페이지 최상단 이미지라 LCP 후보다. 지연 로딩하지 않는다.
+            priority
+            sizes="(min-width: 768px) 768px, 100vw"
             className="mb-8 aspect-video w-full rounded-xl object-cover ring-1 ring-foreground/10"
           />
         ) : null}

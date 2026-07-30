@@ -1,4 +1,5 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import Image from "next/image";
+
 import { ContactLinks } from "@/components/portfolio/contact-links";
 import { ResumeDownloadButton } from "@/components/portfolio/resume-download-button";
 import type { Profile } from "@/types/portfolio";
@@ -37,19 +38,31 @@ export function ProfileHero({ profile }: ProfileHeroProps) {
   return (
     <section className="mx-auto flex max-w-4xl flex-col items-center gap-4 px-4 py-14 text-center sm:px-6 sm:py-20">
       {/*
-        size 프리셋을 쓰지 않는다. `size="lg"` 는 40px 짜리 프리셋인데
-        `data-[size=lg]:size-10` 이 속성 선택자로 컴파일되어 명시도가 더 높아,
-        className 의 일반 유틸리티(`size-28`)를 이겨버린다.
-        프리셋을 빼면 base 의 `size-8` 만 남고 이건 tailwind-merge 가 정리해준다.
+        shadcn `Avatar`(Radix) 를 쓰지 않는다. 두 가지 이유가 있다.
+        1. Radix `AvatarImage` 는 순수 `<img>` 를 그리므로 next/image 최적화를 타지 않는다.
+           노션 프로필 사진 원본은 1MB 를 넘고 이게 홈 화면 LCP 이미지다.
+        2. Radix 의 fallback 은 이미지 로드 상태를 클라이언트에서 판정하는 장치인데,
+           우리는 서버에서 이미 `avatarUrl` 유무를 알고 있어 그 판정이 필요 없다.
       */}
-      <Avatar className="size-28 sm:size-32">
-        {profile.avatarUrl ? (
-          <AvatarImage src={profile.avatarUrl} alt={`${profile.name} 프로필 사진`} />
-        ) : null}
-        <AvatarFallback className="text-3xl sm:text-4xl">
+      {profile.avatarUrl ? (
+        <Image
+          src={profile.avatarUrl}
+          alt={`${profile.name} 프로필 사진`}
+          width={256}
+          height={256}
+          // 홈 최상단 이미지라 LCP 후보다. 지연 로딩하지 않는다.
+          priority
+          sizes="(min-width: 640px) 128px, 112px"
+          className="size-28 rounded-full object-cover ring-1 ring-border sm:size-32"
+        />
+      ) : (
+        <div
+          aria-hidden
+          className="flex size-28 items-center justify-center rounded-full bg-muted text-3xl text-muted-foreground ring-1 ring-border sm:size-32 sm:text-4xl"
+        >
           {toInitials(profile.name)}
-        </AvatarFallback>
-      </Avatar>
+        </div>
+      )}
 
       {profile.name ? (
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{profile.name}</h1>

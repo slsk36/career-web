@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,14 +21,20 @@ export function ProjectCard({ project }: ProjectCardProps) {
 
   return (
     <Card className="relative h-full transition-shadow hover:ring-foreground/25 focus-within:ring-2 focus-within:ring-ring">
+      {/*
+        `fill` 대신 width/height 를 준다. `fill` 은 position 이 잡힌 래퍼 div 가 필요한데,
+        그러면 Card 의 `has-[>img:first-child]:pt-0` / `*:[img:first-child]:rounded-t-xl`
+        선택자가 첫 자식이 img 가 아니게 되어 매칭되지 않는다.
+        실제 표시 크기는 아래 className(aspect-video / object-cover)이 결정하고,
+        width/height 는 16:9 비율만 알려주는 역할이다.
+      */}
       {project.thumbnailUrl ? (
-        // TODO: Phase 5 에서 next/image 로 교체하고 next.config.ts 에 remotePatterns 를 추가한다.
-        // 노션 업로드 파일 URL 은 만료되므로 호스트가 확정된 뒤에 설정해야 한다.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <Image
           src={project.thumbnailUrl}
           alt={`${project.title} 대표 이미지`}
-          loading="lazy"
+          width={640}
+          height={360}
+          sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
           className="aspect-video w-full object-cover"
         />
       ) : null}
