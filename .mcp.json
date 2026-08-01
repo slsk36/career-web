@@ -2,9 +2,9 @@
   "mcpServers": {
     "shrimp-task-manager": {
       "command": "node",
-      "args": ["D:/Users/nina/mcp-shrimp-task-manager/dist/index.js"],
+      "args": ["D:/Users/inflearn/mcp-shrimp-task-manager/dist/index.js"],
       "env": {
-        "DATA_DIR": "D:/Users/nina/mcp-shrimp-task-manager/shrimp_data",
+        "DATA_DIR": "D:/Users/inflearn/mcp-shrimp-task-manager/shrimp_data",
         "TEMPLATES_USE": "ko",
         "ENABLE_GUI": "false"
       }
